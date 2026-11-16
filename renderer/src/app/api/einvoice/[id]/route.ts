@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eInvoiceJson } from "@/lib/gstJson";
+import { guardApi } from "@/lib/auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const g = await guardApi("viewer");
+    if (g.res) return g.res;
     const id = Number((await params).id);
     const json = eInvoiceJson(id);
     return new Response(JSON.stringify([json], null, 2), {

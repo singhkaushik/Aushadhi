@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE, verifySession } from "@/lib/session";
 
-const ADMIN_ONLY = ["/settings", "/import", "/users", "/api/import", "/api/restore", "/api/backup"];
+const ADMIN_ONLY = ["/settings", "/import", "/users", "/api/import", "/api/restore", "/api/backup", "/audit"];
 const WRITE_PAGES = ["/vouchers/edit", "/masters/accounts/new", "/masters/items/new"];
 
 export function middleware(req: NextRequest) {

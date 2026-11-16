@@ -18,7 +18,7 @@ export default async function Outstanding({ searchParams }: { searchParams: Prom
       for (const b of bills) age[b.days <= 30 ? 0 : b.days <= 60 ? 1 : b.days <= 90 ? 2 : 3] += b.pending;
       return { p, bills, total, age };
     })
-    .filter((x) => x.total > 0.004);
+    .filter((x) => x.bills.length > 0);
   const grand = data.reduce((a, x) => a + x.total, 0);
   return (
     <div>
@@ -48,7 +48,7 @@ export default async function Outstanding({ searchParams }: { searchParams: Prom
                 {sp.detail && bills.map((b, i) => (
                   <tr key={`${p.id}-${i}`} className="text-xs text-slate-600">
                     <td className="pl-6" colSpan={3}>
-                      {b.voucher_id ? <Link href={`/vouchers/view/${b.voucher_id}`} className="hover:underline">{vno(b.type, b.number ?? 0)}</Link> : "Opening"} {fmtDate(b.date)} · {b.days} days · bill {money(b.amount)}
+                      {b.voucher_id ? <Link href={`/vouchers/view/${b.voucher_id}`} className="hover:underline">{vno(b.type, b.number ?? 0)}</Link> : b.type === "advance" ? <span className="text-violet-700 font-medium">On Account / Advance</span> : "Opening"} {b.date ? `${fmtDate(b.date)} · ${b.days} days · ` : ""}bill {money(b.amount)}
                     </td>
                     <td colSpan={4}></td><td className="num">{money(b.pending)}</td>
                   </tr>

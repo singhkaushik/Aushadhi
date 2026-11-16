@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { fmtExpiry } from "@/lib/format";
+import { guardApi } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
+  const g = await guardApi("viewer");
+  if (g.res) return g.res;
   const q = req.nextUrl.searchParams.get("q") || "";
   const items = db()
     .prepare(

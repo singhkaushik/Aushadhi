@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { fmtDate, money, today, VOUCHER_LABEL, vno } from "@/lib/format";
+import TypeBadge from "@/components/TypeBadge";
 
 export default async function Vouchers({ searchParams }: { searchParams: Promise<{ type?: string; from?: string; to?: string; q?: string }> }) {
   const sp = await searchParams;
@@ -38,7 +39,7 @@ export default async function Vouchers({ searchParams }: { searchParams: Promise
               <tr key={v.id}>
                 <td>{fmtDate(v.date as string)}</td>
                 <td><Link href={`/vouchers/view/${v.id}`} className="text-teal-700 hover:underline">{vno(v.type as string, v.number as number)}</Link></td>
-                <td>{VOUCHER_LABEL[v.type as string]}</td>
+                <td><TypeBadge type={v.type as string} /></td>
                 <td>{v.party || (v.cash_account_id ? "Cash" : "")}</td>
                 <td>{v.ref_no}</td>
                 <td className="num">{money(Number(v.total))}</td>

@@ -10,12 +10,8 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    rules: {
-      // App Router only — no pages/ directory exists
-      "@next/next/no-html-link-for-pages": "off",
-    },
+    // Global ignores — must be a standalone object to exclude generated output
     ignores: [
       "node_modules/**",
       "**/.next/**",
@@ -24,8 +20,15 @@ const eslintConfig = [
       "app/**",
       "dist/**",
       "scripts/**",
-      "next-env.d.ts",
+      "**/next-env.d.ts",
     ],
+  },
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      // App Router only — no pages/ directory exists
+      "@next/next/no-html-link-for-pages": "off",
+    },
   },
 ];
 

@@ -61,5 +61,12 @@ copyDir(path.join(root, "renderer", ".next", "static"), path.join(innerNext, "st
 const pub = path.join(root, "renderer", "public");
 if (fs.existsSync(pub)) copyDir(pub, path.join(serverDir, relServer, "public"));
 
+// Runtime window icon (main.ts looks for resources/icon.png next to main.js)
+const icon = path.join(root, "resources", "icon.png");
+if (fs.existsSync(icon)) {
+  fs.mkdirSync(path.join(appDir, "resources"), { recursive: true });
+  fs.copyFileSync(icon, path.join(appDir, "resources", "icon.png"));
+}
+
 run("npx", ["electron-builder", "--win"]);
 console.log("\n[build-desktop] done — see dist/");

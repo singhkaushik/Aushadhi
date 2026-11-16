@@ -23,7 +23,10 @@ function waitFor(url: string, retries = 200): Promise<void> {
       http
         .get(url, (res) => {
           res.resume();
-          resolve();
+          // Only count a healthy (non-5xx) response as "ready".
+          if ((res.statusCode ?? 500) < 500) return resolve();
+          if (n <= 0) return reject(new Error(`ERP server returned HTTP ${res.statusCode}`));
+          setTimeout(() => attempt(n - 1), 250);
         })
         .on("error", () => {
           if (n <= 0) return reject(new Error("ERP server did not start"));
@@ -66,13 +69,23 @@ async function startServer(): Promise<string> {
 }
 
 async function createWindow() {
-  const iconPath = path.join(__dirname, "..", "resources", "icon.png");
+  const iconPath = path.join(__dirname, "resources", "icon.png");
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     autoHideMenuBar: true,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
-    webPreferences: { contextIsolation: true, preload: path.join(__dirname, "preload.js") },
+    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "preload.js") },
+  });
+  // Lock the window to the local ERP server: no new windows, no external navigation.
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (e, url) => {
+    try {
+      const u = new URL(url);
+      if (!(u.hostname === "127.0.0.1" || u.hostname === "localhost")) e.preventDefault();
+    } catch {
+      e.preventDefault();
+    }
   });
   if (isDev) {
     const port = process.argv[2] || "8888";

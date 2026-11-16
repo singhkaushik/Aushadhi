@@ -88,13 +88,18 @@ export default async function PrintInvoice({ params, searchParams }: { params: P
   }
   const gstRows: [string, { taxable: number; cgst: number; sgst: number; igst: number }][] =
     opt.gsum === "hsn" ? [...byHsn.entries()] : [...byRate.entries()].map(([r, e]) => [`${r}%`, e]);
-  // Party balance: ledger position before & after this bill
+  // Party balance: ledger position before & after this bill (as of the bill date, not "now")
   const BAL_TYPES = ["sale", "purchase", "sale_return", "purchase_return"];
   let prevBal: number | null = null, closeBal = 0;
   if (p && BAL_TYPES.includes(v.type as string)) {
-    closeBal = Number((d.prepare("SELECT COALESCE(SUM(debit - credit), 0) AS b FROM ledger_entries WHERE account_id = ?").get(v.party_id) as { b: number }).b);
-    const own = Number((d.prepare("SELECT COALESCE(SUM(debit - credit), 0) AS b FROM ledger_entries WHERE voucher_id = ? AND account_id = ?").get(id, v.party_id) as { b: number }).b);
-    prevBal = closeBal - own;
+    const before = d.prepare(
+      "SELECT COALESCE(SUM(debit - credit), 0) AS b FROM ledger_entries WHERE account_id = ? AND (date < ? OR (date = ? AND voucher_id < ?))",
+    ).get(v.party_id, v.date, v.date, id) as { b: number };
+    const through = d.prepare(
+      "SELECT COALESCE(SUM(debit - credit), 0) AS b FROM ledger_entries WHERE account_id = ? AND (date < ? OR (date = ? AND voucher_id <= ?))",
+    ).get(v.party_id, v.date, v.date, id) as { b: number };
+    prevBal = Number(before.b) + Number(p.opening || 0);
+    closeBal = Number(through.b) + Number(p.opening || 0);
   }
   const balTxt = (b: number) => `${money(Math.abs(b))} ${b >= 0 ? "Dr" : "Cr"}`;
   const totQty = lines.reduce((a, l) => a + Number(l.qty) + Number(l.free), 0);
@@ -106,6 +111,96 @@ export default async function PrintInvoice({ params, searchParams }: { params: P
       <span className={`-rotate-45 select-none text-7xl font-black tracking-widest ${opt.stamp === "PAID" ? "text-green-600/20" : "text-red-500/20"}`}>{opt.stamp}</span>
     </div>
   ) : null;
+
+  // ---------- Receipt / Payment / Journal slip ----------
+  if (v.type === "receipt" || v.type === "payment" || v.type === "journal") {
+    const SLIP_TITLE: Record<string, string> = { receipt: "RECEIPT VOUCHER", payment: "PAYMENT VOUCHER", journal: "JOURNAL VOUCHER" };
+    const cashAcc = v.cash_account_id
+      ? (d.prepare("SELECT name FROM accounts WHERE id = ?").get(v.cash_account_id) as { name: string } | undefined)?.name
+      : "";
+    const entries = d
+      .prepare(
+        `SELECT a.name, le.debit, le.credit FROM ledger_entries le JOIN accounts a ON a.id = le.account_id
+         WHERE le.voucher_id = ? ORDER BY le.credit DESC, le.id`,
+      )
+      .all(id) as { name: string; debit: number; credit: number }[];
+    const a5s = format === "a5";
+    return (
+      <div className={`relative mx-auto bg-white p-6 text-black ${a5s ? "w-[144mm] text-[10px]" : "max-w-[210mm] text-[12px]"}`}>
+        <style>{`@media print { @page { size: ${a5s ? "A5" : "A4"}; margin: ${a5s ? "5mm" : "10mm"}; } }`}</style>
+        <div className="no-print mb-3"><PrintButton auto={!!auto} /></div>
+        <div className="border border-black">
+          <div className="border-b border-black p-2 text-center">
+            <div className="text-lg font-bold">{s.company_name}</div>
+            <div>{s.address}</div>
+            <div>Ph: {s.phone} {s.email && `| ${s.email}`}</div>
+            {s.gstin && <div>GSTIN: {s.gstin}</div>}
+          </div>
+          <div className={`border-b border-black py-1 text-center font-bold ${acc.text}`}>{SLIP_TITLE[v.type as string]}</div>
+          <div className="flex items-stretch border-b border-black">
+            <div className="flex-1 border-r border-black p-2">
+              <div><b>No:</b> {vno(v.type as string, v.number as number)}</div>
+              <div><b>Date:</b> {fmtDate(v.date as string)}</div>
+              {v.ref_no ? <div><b>Ref:</b> {v.ref_no}</div> : null}
+            </div>
+            <div className="flex flex-col justify-center p-2 text-right">
+              <div className="text-[10px] uppercase text-gray-500">Amount</div>
+              <div className="text-2xl font-bold">₹ {money(Number(v.total))}</div>
+            </div>
+          </div>
+          <div className="border-b border-black p-3 leading-relaxed">
+            {v.type === "journal" ? (
+              <table className="mt-1 w-full text-[11px]">
+                <thead>
+                  <tr className="border-b border-black"><th className="py-1 text-left">Account</th><th className="py-1 text-right">Debit</th><th className="py-1 text-right">Credit</th></tr>
+                </thead>
+                <tbody>
+                  {entries.map((e, i) => (
+                    <tr key={i} className="border-b border-dotted border-gray-400">
+                      <td className="py-1">{e.name}</td>
+                      <td className="py-1 text-right">{e.debit ? money(e.debit) : ""}</td>
+                      <td className="py-1 text-right">{e.credit ? money(e.credit) : ""}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold">
+                    <td className="py-1">Total</td>
+                    <td className="py-1 text-right">{money(entries.reduce((a, e) => a + e.debit, 0))}</td>
+                    <td className="py-1 text-right">{money(entries.reduce((a, e) => a + e.credit, 0))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            ) : (
+              <>
+                <div>
+                  {v.type === "receipt" ? "Received with thanks from" : "Paid to"}:{" "}
+                  <b className="text-sm">{p ? p.name : "Cash"}</b>{p?.address ? `, ${p.address}` : ""}{p?.city ? `, ${p.city}` : ""}
+                </div>
+                <div className="mt-2">
+                  the sum of <b className="italic">{amountInWords(Number(v.total))} only</b>
+                </div>
+                <div className="mt-2">
+                  by <b>{cashAcc || "Cash"}</b>
+                  {v.ref_no ? ` | Ref: ${v.ref_no}` : ""}
+                  {v.narration ? ` | on account of: ${v.narration}` : " | on account"}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex items-end justify-between p-3 pt-8">
+            <div className="text-center text-[10px]">
+              <div className="mb-1 h-8 w-32 border-b border-dotted border-gray-400" />
+              {v.type === "payment" ? "Receiver's Signature" : v.type === "receipt" ? "Receiver's Signature" : "Prepared by"}
+            </div>
+            <div className="text-center text-[10px]">
+              {s.signature && <img src={s.signature} alt="sign" className="mx-auto mb-1 h-8 object-contain" />}
+              <div className="border-t border-black px-6 pt-1">For {s.company_name}</div>
+              <div>{opt.signt || "Authorised Signatory"}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---------- Thermal receipt (80mm / 58mm) ----------
   if (format === "thermal" || format === "thermal58") {

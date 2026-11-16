@@ -8,6 +8,10 @@ export const today = () => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 };
 
+/** Strict YYYY-MM-DD validation (rejects impossible dates like 2025-13-45). */
+export const isISODate = (s: unknown): s is string =>
+  typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
+
 export const fmtDate = (s?: string | null) => {
   if (!s) return "";
   const [y, m, d] = s.slice(0, 10).split("-");
@@ -91,6 +95,7 @@ export const VOUCHER_LABEL: Record<string, string> = {
   sale_order: "Sale Order",
   purchase_order: "Purchase Order",
   challan: "Delivery Challan",
+  adjustment: "Stock Adjustment",
 };
 
 export const VOUCHER_PREFIX: Record<string, string> = {
@@ -104,6 +109,7 @@ export const VOUCHER_PREFIX: Record<string, string> = {
   sale_order: "SO",
   purchase_order: "PO",
   challan: "DC",
+  adjustment: "ADJ",
 };
 
 export const STATE_CODES: Record<string, string> = {

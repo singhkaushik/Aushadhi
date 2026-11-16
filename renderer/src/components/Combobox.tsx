@@ -23,15 +23,32 @@ export default function Combobox({
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seq = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => setQ(value), [value]);
+
+  const runFetch = async (text: string, id: number): Promise<Option[] | null> => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    try {
+      const sep = url.includes("?") ? "&" : "?";
+      const res = await fetch(`${url}${sep}q=${encodeURIComponent(text)}`, { signal: ac.signal });
+      const data = (await res.json()) as Option[];
+      if (id !== seq.current) return null; // a newer request superseded this one
+      return data;
+    } catch {
+      return null;
+    }
+  };
 
   const search = (text: string) => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
-      const sep = url.includes("?") ? "&" : "?";
-      const res = await fetch(`${url}${sep}q=${encodeURIComponent(text)}`);
-      const data = (await res.json()) as Option[];
+      const id = ++seq.current;
+      const data = await runFetch(text, id);
+      if (data === null) return;
       const exact = text.length >= 6 ? data.find((o) => o.barcode && String(o.barcode) === text.trim()) : undefined;
       if (exact) return choose(exact);
       setOpts(data);
@@ -63,8 +80,9 @@ export default function Combobox({
           if (!open && e.key === "Enter" && q.trim() && q !== value) {
             e.preventDefault();
             if (timer.current) clearTimeout(timer.current);
-            const sep = url.includes("?") ? "&" : "?";
-            const data = (await (await fetch(`${url}${sep}q=${encodeURIComponent(q.trim())}`)).json()) as Option[];
+            const id = ++seq.current;
+            const data = await runFetch(q.trim(), id);
+            if (data === null) return;
             const exact = data.find((o) => o.barcode && String(o.barcode) === q.trim());
             if (exact || data.length === 1) choose(exact ?? data[0]);
             else { setOpts(data); setHi(0); setOpen(true); }

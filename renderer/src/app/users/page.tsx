@@ -1,7 +1,9 @@
 import { db } from "@/lib/db";
 import { addUser, updateUser } from "./actions";
+import { requireRole } from "@/lib/auth";
 
-export default function Users() {
+export default async function Users() {
+  await requireRole("admin");
   const users = db().prepare("SELECT id, username, role, active FROM users ORDER BY username").all() as {
     id: number; username: string; role: string; active: number;
   }[];

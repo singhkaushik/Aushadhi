@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Combobox, { Option } from "./Combobox";
 import { enterToNext } from "./useEnterNav";
@@ -142,7 +142,10 @@ export default function InvoiceForm({
   const exact = r2(totals.taxable + totals.tax);
   const net = Math.round(exact);
 
-  const save = useCallback(async () => {
+  const savingRef = useRef(false);
+  const save = useCallback(async (print = false) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setErr("");
     setSaving(true);
     const body = {
@@ -170,14 +173,23 @@ export default function InvoiceForm({
           sale_rate: Number(r.sale_rate || 0),
         })),
     };
-    const res = await fetch(initial?.id ? `/api/vouchers/${initial.id}` : "/api/vouchers", {
-      method: initial?.id ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(initial?.id ? `/api/vouchers/${initial.id}` : "/api/vouchers", {
+        method: initial?.id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      savingRef.current = false;
+      setSaving(false);
+      return setErr("Network error — please try again");
+    }
     const data = await res.json();
     setSaving(false);
+    savingRef.current = false;
     if (!res.ok) return setErr(data.error || "Save failed");
+    if (print) window.open(`/print/${data.id}?auto=1`, "_blank");
     router.push(`/vouchers/view/${data.id}?saved=1`);
     router.refresh();
   }, [type, date, party, cash, salesman, refNo, refDate, narration, rows, initial, router]);
@@ -344,9 +356,10 @@ export default function InvoiceForm({
           <textarea className="input h-16" value={narration} onChange={(e) => setNarration(e.target.value)} />
           {err && <div className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
           <div className="mt-3 flex gap-2">
-            <button type="button" data-nav className="btn" disabled={saving} onClick={save}>
+            <button type="button" data-nav className="btn" disabled={saving} onClick={() => save()}>
               {saving ? "Saving..." : "Save (Ctrl+S)"}
             </button>
+            <button type="button" className="btn-sec" disabled={saving} onClick={() => save(true)}>Save & Print</button>
             <button type="button" className="btn-sec" onClick={() => router.back()}>Cancel</button>
           </div>
         </div>

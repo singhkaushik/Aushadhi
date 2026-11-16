@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { money } from "@/lib/format";
+import { currentUser } from "@/lib/auth";
 
 export default async function Items({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
+  const user = await currentUser();
   const rows = db()
     .prepare(
       `SELECT i.*, COALESCE((SELECT SUM(qty) FROM batches b WHERE b.item_id = i.id), 0) AS stock
@@ -15,7 +17,7 @@ export default async function Items({ searchParams }: { searchParams: Promise<{ 
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="h1 mb-0">Items / Products</h1>
-        <Link href="/masters/items/new" className="btn">+ New Item</Link>
+        {user?.role !== "viewer" && <Link href="/masters/items/new" className="btn">+ New Item</Link>}
       </div>
       <form className="mb-3 flex gap-2">
         <input name="q" defaultValue={q} placeholder="Search name / company / salt" className="input max-w-sm" />

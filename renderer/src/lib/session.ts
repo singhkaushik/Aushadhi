@@ -11,7 +11,12 @@ function secret() {
   const p = path.join(dir, ".secret");
   if (!fs.existsSync(p)) {
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(p, crypto.randomBytes(32).toString("hex"));
+    fs.writeFileSync(p, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
+    try {
+      fs.chmodSync(p, 0o600);
+    } catch {
+      /* platform without POSIX permissions */
+    }
   }
   return fs.readFileSync(p, "utf8").trim();
 }

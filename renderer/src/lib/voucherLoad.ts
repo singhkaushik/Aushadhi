@@ -1,5 +1,6 @@
 import { db, getSettings } from "./db";
 import { fmtExpiry } from "./format";
+import { CONVERTS_TO } from "./vouchers";
 import type { InvoiceInitial, Row } from "@/components/InvoiceForm";
 import type { CashInitial } from "@/components/CashForm";
 
@@ -20,6 +21,10 @@ export function salesmenList() {
 
 /** Prefill a bill from an open order/challan. */
 export function loadForConversion(sourceId: number, target: string): InvoiceInitial {
+  const src = db().prepare("SELECT type, status FROM vouchers WHERE id = ?").get(sourceId) as
+    | { type: string; status: string }
+    | undefined;
+  if (!src || CONVERTS_TO[src.type] !== target) throw new Error("Invalid source document");
   const inv = loadInvoice(sourceId);
   const rows = inv.rows.map((r) => {
     if (target !== "sale" || r.batch_no) return r;
@@ -33,7 +38,8 @@ export function loadForConversion(sourceId: number, target: string): InvoiceInit
 
 export function loadInvoice(id: number): InvoiceInitial {
   const d = db();
-  const v = d.prepare("SELECT * FROM vouchers WHERE id = ?").get(id) as Record<string, string | number | null>;
+  const v = d.prepare("SELECT * FROM vouchers WHERE id = ?").get(id) as Record<string, string | number | null> | undefined;
+  if (!v) throw new Error("Voucher not found");
   const party = v.party_id
     ? (d.prepare("SELECT id, name, state, gstin, default_disc, salesman_id FROM accounts WHERE id = ?").get(v.party_id) as InvoiceInitial["party"])
     : null;
@@ -83,7 +89,8 @@ export function loadInvoice(id: number): InvoiceInitial {
 
 export function loadCash(id: number): CashInitial {
   const d = db();
-  const v = d.prepare("SELECT * FROM vouchers WHERE id = ?").get(id) as Record<string, string | number | null>;
+  const v = d.prepare("SELECT * FROM vouchers WHERE id = ?").get(id) as Record<string, string | number | null> | undefined;
+  if (!v) throw new Error("Voucher not found");
   const party = v.party_id ? (d.prepare("SELECT id, name FROM accounts WHERE id = ?").get(v.party_id) as { id: number; name: string }) : null;
   const les = d
     .prepare("SELECT l.*, a.name FROM ledger_entries l JOIN accounts a ON a.id = l.account_id WHERE voucher_id = ? ORDER BY l.id")

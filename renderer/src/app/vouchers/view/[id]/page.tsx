@@ -2,13 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { fmtDate, fmtExpiry, money, VOUCHER_LABEL, vno } from "@/lib/format";
+import TypeBadge from "@/components/TypeBadge";
 import DeleteVoucherButton from "@/components/DeleteVoucherButton";
 import PrintMenu from "@/components/PrintMenu";
 import { CONVERTS_TO } from "@/lib/vouchers";
+import { currentUser } from "@/lib/auth";
 
 export default async function ViewVoucher({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string }> }) {
   const id = Number((await params).id);
   const { saved } = await searchParams;
+  const user = await currentUser();
+  const canWrite = user?.role === "admin" || user?.role === "billing";
+  const canDelete = user?.role === "admin";
   const d = db();
   const v = d.prepare("SELECT v.*, a.name AS party FROM vouchers v LEFT JOIN accounts a ON a.id = v.party_id WHERE v.id = ?").get(id) as Record<string, string | number> | undefined;
   if (!v) notFound();
@@ -22,13 +27,14 @@ export default async function ViewVoucher({ params, searchParams }: { params: Pr
     <div className="max-w-5xl">
       {saved && <div className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-800">Saved successfully.</div>}
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="h1 mb-0">{VOUCHER_LABEL[v.type as string]} {vno(v.type as string, v.number as number)}</h1>
+        <h1 className="h1 mb-0 flex items-center gap-2"><TypeBadge type={v.type as string} /> <span>{vno(v.type as string, v.number as number)}</span></h1>
         <div className="flex gap-2">
-          {convertTo && <Link href={`/vouchers/${convertTo}/new?from=${id}`} className="btn">Convert to {VOUCHER_LABEL[convertTo]}</Link>}
-          {isInvoice && <PrintMenu id={id} />}
-          <Link href={`/vouchers/edit/${id}`} className="btn-sec">Edit</Link>
-          <Link href={`/vouchers/${v.type}/new`} className="btn-sec">New {VOUCHER_LABEL[v.type as string]}</Link>
-          <DeleteVoucherButton id={id} />
+          {canWrite && convertTo && <Link href={`/vouchers/${convertTo}/new?from=${id}`} className="btn">Convert to {VOUCHER_LABEL[convertTo]}</Link>}
+          {isInvoice && v.type !== "adjustment" && <PrintMenu id={id} />}
+          {["receipt","payment","journal"].includes(v.type as string) && <a href={`/print/${id}?auto=1`} target="_blank" className="btn-sec">Print Slip</a>}
+          {canWrite && <Link href={`/vouchers/edit/${id}`} className="btn-sec">Edit</Link>}
+          {canWrite && <Link href={`/vouchers/${v.type}/new`} className="btn-sec">New {VOUCHER_LABEL[v.type as string]}</Link>}
+          {canDelete && <DeleteVoucherButton id={id} />}
         </div>
       </div>
       {(src || bill || v.status === "converted") && (
@@ -39,7 +45,7 @@ export default async function ViewVoucher({ params, searchParams }: { params: Pr
       )}
       <div className="card mb-3 grid grid-cols-4 gap-3 text-sm">
         <div><div className="label">Date</div>{fmtDate(v.date as string)}</div>
-        <div><div className="label">Party</div>{v.party || "Cash"}</div>
+        <div><div className="label">Party</div>{v.party || (v.cash_account_id ? "Cash" : "—")}</div>
         <div><div className="label">Ref</div>{v.ref_no} {v.ref_date ? `(${fmtDate(v.ref_date as string)})` : ""}</div>
         <div><div className="label">Amount</div><span className="font-semibold">₹ {money(Number(v.total))}</span></div>
         {v.narration && <div className="col-span-4"><div className="label">Narration</div>{v.narration}</div>}

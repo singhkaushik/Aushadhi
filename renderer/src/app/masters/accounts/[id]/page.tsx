@@ -1,12 +1,19 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { db, GROUPS } from "@/lib/db";
 import { STATES } from "@/lib/format";
 import { saveAccount, deleteAccount } from "../../actions";
+import { currentUser } from "@/lib/auth";
 
 export default async function AccountForm({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ grp?: string }> }) {
   const { id } = await params;
   const { grp } = await searchParams;
-  const a = (id === "new" ? {} : db().prepare("SELECT * FROM accounts WHERE id = ?").get(Number(id)) ?? {}) as Record<string, string | number | null>;
+  const user = await currentUser();
+  const isNew = id === "new";
+  const rec = isNew ? {} : db().prepare("SELECT * FROM accounts WHERE id = ?").get(Number(id));
+  if (!isNew && !rec) notFound();
+  const a = rec as Record<string, string | number | null>;
+  const readOnly = user?.role === "viewer";
   const opening = Number(a.opening || 0);
   const salesmen = db().prepare("SELECT id, name FROM salesmen WHERE active = 1 ORDER BY name").all() as { id: number; name: string }[];
   const F = ({ name, label, type = "text", className = "" }: { name: string; label: string; type?: string; className?: string }) => (
@@ -17,9 +24,9 @@ export default async function AccountForm({ params, searchParams }: { params: Pr
   );
   return (
     <div className="max-w-3xl">
-      <h1 className="h1">{id === "new" ? "New Ledger" : `Edit Ledger: ${a.name}`}</h1>
+      <h1 className="h1">{isNew ? "New Ledger" : `Edit Ledger: ${a.name}`}</h1>
       <form action={saveAccount} className="card grid grid-cols-2 gap-3">
-        <input type="hidden" name="id" value={id === "new" ? "" : id} />
+        <input type="hidden" name="id" value={isNew ? "" : id} />
         <div className="col-span-2">
           <label className="label">Name *</label>
           <input name="name" required autoFocus defaultValue={(a.name as string) ?? ""} className="input" />
@@ -62,11 +69,11 @@ export default async function AccountForm({ params, searchParams }: { params: Pr
           </div>
         </div>
         <div className="col-span-2 flex gap-2 pt-2">
-          <button className="btn">Save</button>
-          <Link href="/masters/accounts" className="btn-sec">Cancel</Link>
+          {!readOnly && <button className="btn">Save</button>}
+          <Link href="/masters/accounts" className="btn-sec">{readOnly ? "Back" : "Cancel"}</Link>
         </div>
       </form>
-      {id !== "new" && !a.code && (
+      {!isNew && !a.code && user?.role === "admin" && (
         <form action={deleteAccount} className="mt-3">
           <input type="hidden" name="id" value={id} />
           <button className="btn-danger">Delete</button>

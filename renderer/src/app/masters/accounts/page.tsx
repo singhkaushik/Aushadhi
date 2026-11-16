@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { db, GROUPS } from "@/lib/db";
 import { money } from "@/lib/format";
+import { currentUser } from "@/lib/auth";
 
 export default async function Accounts({ searchParams }: { searchParams: Promise<{ q?: string; grp?: string }> }) {
   const { q = "", grp = "" } = await searchParams;
+  const user = await currentUser();
   const rows = db()
     .prepare(
       `SELECT a.*, a.opening + COALESCE((SELECT SUM(debit - credit) FROM ledger_entries l WHERE l.account_id = a.id), 0) AS bal
@@ -15,7 +17,7 @@ export default async function Accounts({ searchParams }: { searchParams: Promise
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="h1 mb-0">Parties / Ledgers</h1>
-        <Link href="/masters/accounts/new" className="btn">+ New Ledger</Link>
+        {user?.role !== "viewer" && <Link href="/masters/accounts/new" className="btn">+ New Ledger</Link>}
       </div>
       <form className="mb-3 flex gap-2">
         <input name="q" defaultValue={q} placeholder="Search name / GSTIN / city" className="input max-w-xs" />

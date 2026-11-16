@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db, sysAcc } from "@/lib/db";
-import { fmtDate, money, today, VOUCHER_LABEL, vno } from "@/lib/format";
+import { fmtDate, money, today, vno } from "@/lib/format";
+import TypeBadge from "@/components/TypeBadge";
 import { accountBalance } from "@/lib/vouchers";
 import { defaultPasswordInUse } from "@/lib/auth";
 import { Icon } from "@/components/icons";
@@ -106,7 +107,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <tr key={v.id}>
                 <td>{fmtDate(v.date as string)}</td>
                 <td><Link href={`/vouchers/view/${v.id}`} className="text-teal-700 hover:underline">{vno(v.type as string, v.number as number)}</Link></td>
-                <td>{VOUCHER_LABEL[v.type as string]}</td><td>{v.party || "Cash"}</td><td className="num">{money(Number(v.total))}</td>
+                <td><TypeBadge type={v.type as string} /></td><td>{v.party || "Cash"}</td><td className="num">{money(Number(v.total))}</td>
               </tr>
             ))}
             {!recent.length && <tr><td colSpan={5} className="py-6 text-center text-slate-500">No vouchers yet. Start with Settings → company details, then import Marg data or add items.</td></tr>}

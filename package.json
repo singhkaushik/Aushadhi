@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev renderer",
     "build": "next build renderer",
-    "start": "next start renderer",
+    "start": "node scripts/start-server.mjs",
     "lint": "eslint",
     "desktop": "node scripts/desktop.mjs",
     "dist": "node scripts/build-desktop.mjs"

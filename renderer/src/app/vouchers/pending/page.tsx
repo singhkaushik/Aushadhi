@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { fmtDate, money, VOUCHER_LABEL, vno } from "@/lib/format";
+import { fmtDate, money, vno } from "@/lib/format";
+import TypeBadge from "@/components/TypeBadge";
 import { CONVERTS_TO } from "@/lib/vouchers";
 
 export default function Pending() {
@@ -21,7 +22,7 @@ export default function Pending() {
               <tr key={v.id}>
                 <td>{fmtDate(v.date as string)}</td>
                 <td><Link href={`/vouchers/view/${v.id}`} className="text-teal-700 hover:underline">{vno(v.type as string, v.number as number)}</Link></td>
-                <td>{VOUCHER_LABEL[v.type as string]}</td><td>{v.party}</td><td className="num">{money(Number(v.total))}</td>
+                <td><TypeBadge type={v.type as string} /></td><td>{v.party}</td><td className="num">{money(Number(v.total))}</td>
                 <td><Link href={`/vouchers/${CONVERTS_TO[v.type as string]}/new?from=${v.id}`} className="text-teal-700 hover:underline">Convert to bill →</Link></td>
               </tr>
             ))}

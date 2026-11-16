@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { unstable_noStore } from "next/cache";
@@ -66,6 +67,7 @@ const SYSTEM_ACCOUNTS: [string, string, string][] = [
   ["IN_SGST", "Input SGST", "Duties & Taxes"],
   ["IN_IGST", "Input IGST", "Duties & Taxes"],
   ["ROUND_OFF", "Round Off", "Indirect Expenses"],
+  ["STOCK_WO", "Stock Write Off", "Indirect Expenses"],
   ["CAPITAL", "Capital", "Capital Account"],
 ];
 
@@ -154,6 +156,27 @@ function migrate(d: Database.Database) {
     d.pragma("user_version = 1");
   }
   if (v < 2) migrateV2(d);
+  if (v < 3) {
+    d.exec(`
+      CREATE TABLE audit_log (
+        id INTEGER PRIMARY KEY,
+        user TEXT,
+        action TEXT NOT NULL,
+        entity TEXT NOT NULL,
+        entity_id INTEGER,
+        detail TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX audit_log_time ON audit_log(created_at);
+    `);
+    d.prepare("INSERT OR IGNORE INTO accounts (code, name, grp) VALUES ('STOCK_WO', 'Stock Write Off', 'Indirect Expenses')").run();
+    d.pragma("user_version = 3");
+  }
+  if (v < 4) {
+    d.exec(`CREATE TABLE IF NOT EXISTS voucher_seq (type TEXT NOT NULL, fy INTEGER NOT NULL, next INTEGER NOT NULL, PRIMARY KEY (type, fy))`);
+    d.exec(`INSERT OR IGNORE INTO voucher_seq (type, fy, next) SELECT type, fy, MAX(number) + 1 FROM vouchers GROUP BY type, fy`);
+    d.pragma("user_version = 4");
+  }
 }
 
 export function fyOf(date: string) {
@@ -174,7 +197,8 @@ function migrateV2(d: Database.Database) {
       CREATE TABLE salesmen (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, phone TEXT, active INTEGER NOT NULL DEFAULT 1);
       CREATE TABLE users (
         id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'billing', active INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        role TEXT NOT NULL DEFAULT 'billing', active INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        CHECK (role IN ('admin','billing','viewer'))
       );
       CREATE TABLE vouchers_new (
         id INTEGER PRIMARY KEY,
@@ -203,6 +227,12 @@ function migrateV2(d: Database.Database) {
       ALTER TABLE vouchers_new RENAME TO vouchers;
       CREATE INDEX vouchers_date ON vouchers(date);
     `);
+    // First-run account only: created once when the users table is born. Restored
+    // backups that already contain users are untouched, and an empty users table on
+    // an existing DB does NOT silently re-enable admin/admin (that's a lock-out, not a backdoor).
+    const salt = crypto.randomBytes(16).toString("hex");
+    const hash = crypto.scryptSync("admin", salt, 64).toString("hex");
+    d.prepare("INSERT INTO users (username, password_hash, role) VALUES ('admin', ?, 'admin')").run(`${salt}:${hash}`);
     d.pragma("user_version = 2");
   })();
   d.pragma("foreign_keys = ON");

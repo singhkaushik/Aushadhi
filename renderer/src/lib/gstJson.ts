@@ -24,14 +24,14 @@ export function eInvoiceJson(id: number) {
   const buyerSt = stateCode(p.state, p.gstin);
   return {
     Version: "1.1",
-    TranDtls: { TaxSch: "GST", SupTyp: "B2B", RegRev: "N", IgstOnIntra: "N" },
+    TranDtls: { TaxSch: "GST", SupTyp: p.gstin ? "B2B" : "B2C", RegRev: "N", IgstOnIntra: "N" },
     DocDtls: { Typ: "INV", No: vno("sale", Number(v.number)), Dt: dmy(String(v.date)) },
     SellerDtls: { Gstin: s.gstin, LglNm: s.company_name, Addr1: (s.address || "").slice(0, 100), Loc: s.city || "", Pin: Number(s.pincode) || 0, Stcd: sellerSt, Ph: s.phone || undefined, Em: s.email || undefined },
-    BuyerDtls: { Gstin: p.gstin, LglNm: p.name, Pos: buyerSt, Addr1: (p.address || p.city || "").slice(0, 100), Loc: p.city || "", Pin: Number(p.pincode) || 0, Stcd: buyerSt, Ph: p.phone || undefined },
+    BuyerDtls: { Gstin: p.gstin || "URP", LglNm: p.name || "Cash Sale", Pos: buyerSt || sellerSt, Addr1: (p.address || p.city || "").slice(0, 100), Loc: p.city || "", Pin: Number(p.pincode) || 0, Stcd: buyerSt || sellerSt, Ph: p.phone || undefined },
     ItemList: lines.map((l, i) => {
       const gross = r2(Number(l.qty) * Number(l.rate));
       return {
-        SlNo: String(i + 1), PrdDesc: l.name, IsServc: "N", HsnCd: l.hsn || "", Qty: Number(l.qty), FreeQty: Number(l.free), Unit: "NOS",
+        SlNo: String(i + 1), PrdDesc: l.name, IsServc: "N", HsnCd: l.hsn || "", Qty: Number(l.qty), FreeQty: Number(l.free), Unit: l.unit || "NOS",
         UnitPrice: Number(l.rate), TotAmt: gross, Discount: r2(gross - Number(l.taxable)), AssAmt: Number(l.taxable), GstRt: Number(l.gst_rate),
         IgstAmt: Number(l.igst), CgstAmt: Number(l.cgst), SgstAmt: Number(l.sgst), TotItemVal: Number(l.amount),
         BchDtls: { Nm: String(l.batch_no || ""), ExpDt: l.expiry ? `01/${fmtExpiry(String(l.expiry)).replace(/\/(\d{2})$/, "/20$1")}` : undefined },
@@ -57,7 +57,7 @@ export function eWayBillJson(id: number, opts: { vehicle?: string; distance?: nu
         toPincode: Number(p.pincode) || 0, toStateCode: toSt, actualToStateCode: toSt,
         totalValue: Number(v.taxable), cgstValue: Number(v.cgst), sgstValue: Number(v.sgst), igstValue: Number(v.igst), cessValue: 0,
         TotNonAdvolVal: 0, OthValue: Number(v.round_off), totInvValue: Number(v.total),
-        transMode: 1, transDistance: Number(opts.distance) || 0, transporterName: opts.transporter || "", transporterId: "",
+        transMode: 1, transDistance: Math.max(0, Math.min(9999, Number(opts.distance) || 0)), transporterName: opts.transporter || "", transporterId: "",
         transDocNo: "", transDocDate: "", vehicleNo: (opts.vehicle || "").replace(/\s/g, "").toUpperCase(), vehicleType: "R",
         mainHsnCode: Number(lines[0]?.hsn) || 0,
         itemList: lines.map((l, i) => {

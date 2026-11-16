@@ -12,7 +12,8 @@ export function range(sp: { from?: string; to?: string }, defaultFrom: "month" |
   return { from, to };
 }
 
-const STOCK_SIGN_SQL = `CASE WHEN v.type IN ('purchase','sale_return') THEN 1
+// Adjustments store a signed delta in vi.qty, so their movement must be counted (+1 × delta).
+const STOCK_SIGN_SQL = `CASE WHEN v.type IN ('purchase','sale_return','adjustment') THEN 1
   WHEN v.type IN ('sale','purchase_return') OR (v.type = 'challan' AND v.status <> 'converted') THEN -1 ELSE 0 END`;
 
 /** Stock value at purchase rate as of a date (inclusive). Pass null for opening stock. */
@@ -124,7 +125,10 @@ export function pendingBills(accountId: number, side: 1 | -1, asOf = today()): P
     credit = r2(credit - use);
   }
   const now = new Date(asOf + "T00:00:00Z").getTime();
-  return bills
+  const open = bills
     .filter((b) => b.pending > 0.004)
     .map((b) => ({ ...b, days: b.date ? Math.floor((now - new Date(b.date + "T00:00:00Z").getTime()) / 86400000) : 0 }));
+  // Unallocated receipts/advances (payments not consumed by any bill) — shown like Tally's "On Account".
+  if (credit > 0.004) open.push({ voucher_id: null, type: "advance", number: null, date: "", amount: -r2(credit), pending: -r2(credit), days: 0 });
+  return open;
 }

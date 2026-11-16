@@ -1,7 +1,14 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { db } from "./db";
 import { COOKIE, Role, SessionUser, verifySession } from "./session";
+
+export const ROLES: Role[] = ["admin", "billing", "viewer"];
+const RANK: Record<Role, number> = { viewer: 0, billing: 1, admin: 2 };
+
+/** Unknown/bogus roles rank -1, i.e. below every required level — never trust them. */
+export const roleAtLeast = (role: string, min: Role) => (RANK[role as Role] ?? -1) >= RANK[min];
 
 export function hashPassword(pw: string) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -9,26 +16,44 @@ export function hashPassword(pw: string) {
 }
 
 export function checkPassword(pw: string, stored: string) {
-  const [salt, hash] = stored.split(":");
+  const [salt, hash] = String(stored ?? "").split(":");
+  if (!salt || !hash) return false;
+  const expected = Buffer.from(hash, "hex");
+  if (expected.length !== 64) return false;
   const h = crypto.scryptSync(pw, salt, 64);
-  return crypto.timingSafeEqual(h, Buffer.from(hash, "hex"));
+  return crypto.timingSafeEqual(h, expected);
 }
 
-export function ensureAdmin() {
-  const c = db().prepare("SELECT COUNT(*) c FROM users").get() as { c: number };
-  if (c.c === 0) db().prepare("INSERT INTO users (username, password_hash, role) VALUES ('admin', ?, 'admin')").run(hashPassword("admin"));
-}
-
+/**
+ * The cookie proves identity, but role/active are always re-read from the users
+ * table so that demotion, deactivation, deletion and DB restores take effect
+ * immediately instead of surviving for the 7-day cookie lifetime.
+ */
 export async function currentUser(): Promise<SessionUser | null> {
-  return verifySession((await cookies()).get(COOKIE)?.value);
+  const sess = verifySession((await cookies()).get(COOKIE)?.value);
+  if (!sess) return null;
+  const row = db().prepare("SELECT id, username, role, active FROM users WHERE id = ?").get(sess.id) as
+    | { id: number; username: string; role: Role; active: number }
+    | undefined;
+  if (!row || !row.active || row.username !== sess.username || !ROLES.includes(row.role)) return null;
+  return { id: row.id, username: row.username, role: row.role };
 }
-
-const RANK: Record<Role, number> = { viewer: 0, billing: 1, admin: 2 };
 
 export async function requireRole(min: Role) {
   const u = await currentUser();
-  if (!u || RANK[u.role] < RANK[min]) throw new Error(`Permission denied: ${min} role required`);
+  if (!u || !roleAtLeast(u.role, min)) throw new Error(`Permission denied: ${min} role required`);
   return u;
+}
+
+/**
+ * Same check for API routes: returns `{ res }` (a 401/403 response) or `{ user }`.
+ * API routes must not rely solely on middleware for authorization.
+ */
+export async function guardApi(min: Role): Promise<{ res: NextResponse; user?: undefined } | { user: SessionUser; res?: undefined }> {
+  const u = await currentUser();
+  if (!u) return { res: NextResponse.json({ error: "Please log in" }, { status: 401 }) };
+  if (!roleAtLeast(u.role, min)) return { res: NextResponse.json({ error: "Permission denied" }, { status: 403 }) };
+  return { user: u };
 }
 
 export function defaultPasswordInUse() {

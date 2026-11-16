@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, GROUPS } from "@/lib/db";
 import { parseExpiry } from "@/lib/format";
+import { guardApi } from "@/lib/auth";
 
 type Row = Record<string, unknown>;
 const s = (v: unknown) => {
@@ -25,8 +26,17 @@ function groupFor(v: unknown, fallback: string) {
   return fallback;
 }
 
+const IMPORT_TYPES = ["parties", "items", "stock"];
+const MAX_ROWS = 5000;
+
 export async function POST(req: NextRequest) {
+  const g = await guardApi("admin");
+  if (g.res) return g.res;
   const { type, rows, defaultGroup = "Sundry Debtors" } = (await req.json()) as { type: string; rows: Row[]; defaultGroup?: string };
+  if (!IMPORT_TYPES.includes(type)) return NextResponse.json({ error: "Unknown import type" }, { status: 400 });
+  if (!Array.isArray(rows)) return NextResponse.json({ error: "No rows provided" }, { status: 400 });
+  if (rows.length > MAX_ROWS) return NextResponse.json({ error: `Too many rows — import in batches of ${MAX_ROWS}` }, { status: 400 });
+  if (!Object.keys(GROUPS).includes(defaultGroup)) return NextResponse.json({ error: "Invalid default group" }, { status: 400 });
   const d = db();
   let created = 0;
   let updated = 0;
@@ -51,7 +61,7 @@ export async function POST(req: NextRequest) {
           const sideText = `${r.opening_side ?? ""} ${r.opening ?? ""}`.toLowerCase();
           if (/\bcr\b|cr$|credit/.test(sideText)) amt = -Math.abs(amt);
           else if (/\bdr\b|dr$|debit/.test(sideText)) amt = Math.abs(amt);
-          else if (GROUPS[grp] === "liability") amt = -amt;
+          else if (GROUPS[grp] === "liability") amt = -Math.abs(amt);
           const vals = [grp, s(r.address), s(r.city), s(r.state), s(r.phone), s(r.email), s(r.gstin)?.toUpperCase() ?? null, s(r.dl_no), amt, n(r.credit_days)];
           const ex = find.get(name) as { id: number } | undefined;
           if (ex) { upd.run(...vals, ex.id); updated++; }
@@ -97,8 +107,10 @@ export async function POST(req: NextRequest) {
           if (type === "stock") {
             const qty = n(r.qty);
             const bno = s(r.batch_no) || "NA";
-            const info = batch.run(ex.id, bno, parseExpiry(r.expiry), mrp, pr, ptr, qty, qty);
-            if (info.changes) created++;
+            const existed = d.prepare("SELECT id FROM batches WHERE item_id = ? AND batch_no = ?").get(ex.id, bno);
+            batch.run(ex.id, bno, parseExpiry(r.expiry), mrp, pr, ptr, qty, qty);
+            if (existed) updated++;
+            else created++;
           }
         }
       } else {

@@ -1,12 +1,18 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { fmtExpiry, money } from "@/lib/format";
 import { saveItem, deleteItem, saveOpeningBatch, deleteBatch } from "../../actions";
+import { currentUser } from "@/lib/auth";
 
 export default async function ItemForm({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await currentUser();
   const isNew = id === "new";
-  const i = (isNew ? { gst_rate: 12, unit: "PCS" } : db().prepare("SELECT * FROM items WHERE id = ?").get(Number(id)) ?? {}) as Record<string, string | number | null>;
+  const rec = isNew ? { gst_rate: 12, unit: "PCS" } : db().prepare("SELECT * FROM items WHERE id = ?").get(Number(id));
+  if (!isNew && !rec) notFound();
+  const i = rec as Record<string, string | number | null>;
+  const readOnly = user?.role === "viewer";
   const batches = isNew ? [] : (db().prepare("SELECT * FROM batches WHERE item_id = ? ORDER BY expiry").all(Number(id)) as Record<string, string | number>[]);
   const F = ({ name, label, type = "text", className = "" }: { name: string; label: string; type?: string; className?: string }) => (
     <div className={className}>
@@ -45,11 +51,11 @@ export default async function ItemForm({ params }: { params: Promise<{ id: strin
         <F name="scheme_qty" label="Scheme: on Qty (e.g. 10)" type="number" />
         <F name="scheme_free" label="Scheme: Free (e.g. 1)" type="number" />
         <div className="col-span-4 flex gap-2 pt-2">
-          <button className="btn">Save</button>
-          <Link href="/masters/items" className="btn-sec">Cancel</Link>
+          {!readOnly && <button className="btn">Save</button>}
+          <Link href="/masters/items" className="btn-sec">{readOnly ? "Back" : "Cancel"}</Link>
         </div>
       </form>
-      {!isNew && (
+      {!isNew && !readOnly && (
         <>
           <h2 className="mt-6 mb-2 font-semibold text-slate-700">Batches &amp; Opening Stock</h2>
           <div className="card p-0">
@@ -62,10 +68,10 @@ export default async function ItemForm({ params }: { params: Promise<{ id: strin
                     <td className="num">{money(Number(b.purchase_rate))}</td><td className="num">{money(Number(b.sale_rate))}</td>
                     <td className="num">{b.opening_qty}</td><td className="num font-medium">{b.qty}</td>
                     <td>
-                      <form action={deleteBatch}>
+                      {user?.role === "admin" && <form action={deleteBatch}>
                         <input type="hidden" name="batch_id" value={b.id} /><input type="hidden" name="item_id" value={id} />
                         <button className="text-xs text-red-600 hover:underline">delete</button>
-                      </form>
+                      </form>}
                     </td>
                   </tr>
                 ))}
@@ -82,10 +88,12 @@ export default async function ItemForm({ params }: { params: Promise<{ id: strin
               <button className="btn">Add / Update Batch</button>
             </form>
           </div>
-          <form action={deleteItem} className="mt-4">
-            <input type="hidden" name="id" value={id} />
-            <button className="btn-danger">Delete Item</button>
-          </form>
+          {user?.role === "admin" && (
+            <form action={deleteItem} className="mt-4">
+              <input type="hidden" name="id" value={id} />
+              <button className="btn-danger">Delete Item</button>
+            </form>
+          )}
         </>
       )}
     </div>

@@ -39,6 +39,7 @@ export default function CashForm({
   const [narration, setNarration] = useState(initial?.narration ?? "");
   const [lines, setLines] = useState<JLine[]>(initial?.lines?.length ? initial.lines : [jl(), jl()]);
   const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const dr = r2(lines.reduce((a, l) => a + Number(l.debit || 0), 0));
   const cr = r2(lines.reduce((a, l) => a + Number(l.credit || 0), 0));
@@ -50,18 +51,31 @@ export default function CashForm({
     });
 
   const save = async () => {
+    if (saving) return;
     setErr("");
+    setSaving(true);
     const body =
       type === "journal"
         ? { type, date, narration, ref_no: refNo, lines: lines.filter((l) => l.account_id).map((l) => ({ account_id: l.account_id, debit: Number(l.debit || 0), credit: Number(l.credit || 0) })) }
         : { type, date, narration, ref_no: refNo, party_id: party?.id, cash_account_id: cashAcc, amount: Number(amount || 0) };
-    const res = await fetch(initial?.id ? `/api/vouchers/${initial.id}` : "/api/vouchers", {
-      method: initial?.id ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(initial?.id ? `/api/vouchers/${initial.id}` : "/api/vouchers", {
+        method: initial?.id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      setErr("Network error — please try again");
+      setSaving(false);
+      return;
+    }
     const data = await res.json();
-    if (!res.ok) return setErr(data.error || "Save failed");
+    if (!res.ok) {
+      setErr(data.error || "Save failed");
+      setSaving(false);
+      return;
+    }
     router.push(`/vouchers/view/${data.id}?saved=1`);
     router.refresh();
   };
@@ -119,7 +133,7 @@ export default function CashForm({
         </div>
         {err && <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
         <div className="flex gap-2">
-          <button type="button" data-nav className="btn" onClick={save}>Save</button>
+          <button type="button" data-nav className="btn" onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
           <button type="button" className="btn-sec" onClick={() => router.back()}>Cancel</button>
         </div>
       </div>

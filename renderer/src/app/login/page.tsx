@@ -18,7 +18,7 @@ export default function Login() {
           });
           if (!res.ok) return setErr((await res.json()).error);
           const next = new URLSearchParams(window.location.search).get("next");
-          window.location.href = next && next.startsWith("/") ? next : "/";
+          window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
         }}
       >
         <div className="flex flex-col items-center gap-1 text-center">
