@@ -26,6 +26,14 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           <label className="label">State</label>
           <select name="state" defaultValue={s.state ?? ""} className="input">{STATES.map((x) => <option key={x}>{x}</option>)}</select>
         </div>
+        <div>
+          <label className="label">App Theme</label>
+          <select name="theme" defaultValue={s.theme ?? "teal"} className="input">
+            {[["teal", "Teal (default)"], ["blue", "Blue"], ["indigo", "Indigo"], ["emerald", "Emerald"], ["violet", "Violet"], ["rose", "Rose"]].map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </div>
         <F name="invoice_terms" label="Invoice Terms (footer)" className="col-span-2" />
         <F name="declaration" label="Declaration (optional, prints on bill)" className="col-span-2" />
         <F name="footer_note" label="Footer note (e.g. Computer generated bill)" className="col-span-2" />

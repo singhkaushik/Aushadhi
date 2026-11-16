@@ -23,6 +23,35 @@ body { @apply bg-slate-100 text-slate-900 antialiased; font-family: "Segoe UI", 
 ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300 hover:bg-slate-400; }
 aside ::-webkit-scrollbar-thumb { @apply bg-slate-700 hover:bg-slate-600; }
 
+/* ---------- App themes: recolor every teal utility via accent vars ---------- */
+[data-theme="teal"]    { --a50:240 253 250; --a100:204 251 241; --a200:153 246 228; --a300:94 234 212; --a400:45 212 191; --a500:20 184 166; --a600:13 148 136; --a700:15 118 110; --a800:17 94 89; }
+[data-theme="blue"]    { --a50:239 246 255; --a100:219 234 254; --a200:191 219 254; --a300:147 197 253; --a400:96 165 250; --a500:59 130 246; --a600:37 99 235; --a700:29 78 216; --a800:30 64 175; }
+[data-theme="indigo"]  { --a50:238 242 255; --a100:224 231 255; --a200:199 210 254; --a300:165 180 252; --a400:129 140 248; --a500:99 102 241; --a600:79 70 229; --a700:67 56 202; --a800:55 48 163; }
+[data-theme="emerald"] { --a50:236 253 245; --a100:209 250 229; --a200:167 243 208; --a300:110 231 183; --a400:52 211 153; --a500:16 185 129; --a600:5 150 105; --a700:4 120 87; --a800:6 95 70; }
+[data-theme="violet"]  { --a50:245 243 255; --a100:237 233 254; --a200:221 214 254; --a300:196 181 253; --a400:167 139 250; --a500:139 92 246; --a600:124 58 237; --a700:109 40 217; --a800:91 33 182; }
+[data-theme="rose"]    { --a50:255 241 242; --a100:255 228 230; --a200:254 205 211; --a300:253 164 175; --a400:251 113 133; --a500:244 63 94; --a600:225 29 72; --a700:190 18 60; --a800:159 18 57; }
+
+[data-theme] .bg-teal-700 { background-color: rgb(var(--a700)); }
+[data-theme] .hover\:bg-teal-800:hover { background-color: rgb(var(--a800)); }
+[data-theme] .bg-teal-100 { background-color: rgb(var(--a100)); }
+[data-theme] .bg-teal-50 { background-color: rgb(var(--a50)); }
+[data-theme] .bg-teal-50\/40 { background-color: rgb(var(--a50) / 0.4); }
+[data-theme] .text-teal-700 { color: rgb(var(--a700)); }
+[data-theme] .text-teal-600 { color: rgb(var(--a600)); }
+[data-theme] .text-teal-400 { color: rgb(var(--a400)); }
+[data-theme] .border-teal-600 { border-color: rgb(var(--a600)); }
+[data-theme] .border-teal-400 { border-color: rgb(var(--a400)); }
+[data-theme] .border-teal-300, [data-theme] .hover\:border-teal-300:hover { border-color: rgb(var(--a300)); }
+[data-theme] .focus\:border-teal-600:focus { border-color: rgb(var(--a600)); }
+[data-theme] .ring-teal-600 { --tw-ring-color: rgb(var(--a600)); }
+[data-theme] .ring-teal-600\/30 { --tw-ring-color: rgb(var(--a600) / 0.3); }
+[data-theme] .fill-teal-600 { fill: rgb(var(--a600)); }
+[data-theme] .hover\:fill-teal-500:hover { fill: rgb(var(--a500)); }
+[data-theme] .accent-teal-700 { accent-color: rgb(var(--a700)); }
+[data-theme] .from-teal-50 { --tw-gradient-from: rgb(var(--a50)) var(--tw-gradient-from-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+[data-theme] .to-teal-100\/60 { --tw-gradient-to: rgb(var(--a100) / 0.6) var(--tw-gradient-to-position); }
+[data-theme] ::selection { background-color: rgb(var(--a200)); }
+
 @media print {
   .no-print { display: none !important; }
   body { background: white; }

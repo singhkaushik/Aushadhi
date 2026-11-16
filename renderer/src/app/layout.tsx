@@ -14,7 +14,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en">
       <body>
-        <Shell company={s.company_name || "Aushadhi"} user={user}>{children}</Shell>
+        <Shell company={s.company_name || "Aushadhi"} user={user} theme={s.theme || "teal"}>{children}</Shell>
       </body>
     </html>
   );
