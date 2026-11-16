@@ -5,9 +5,9 @@ import { LogoMark } from "@/components/Logo";
 export default function Login() {
   const [err, setErr] = useState("");
   return (
-    <div className="flex min-h-[80vh] items-center justify-center">
+    <div className="-m-5 flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-slate-100 to-teal-100/60">
       <form
-        className="card w-80 space-y-3"
+        className="w-80 space-y-3 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-xl backdrop-blur"
         onSubmit={async (e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -25,6 +25,7 @@ export default function Login() {
           <LogoMark size={44} />
           <div className="text-xs font-semibold uppercase tracking-widest text-teal-600">Aushadhi</div>
           <div className="text-lg font-semibold">Login</div>
+          <div className="text-[11px] text-slate-400">Pharma Distribution ERP</div>
         </div>
         <div><label className="label">Username</label><input name="username" className="input" autoFocus required /></div>
         <div><label className="label">Password</label><input name="password" type="password" className="input" required /></div>

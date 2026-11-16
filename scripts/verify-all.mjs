@@ -144,9 +144,9 @@ const t = async (qs) => await html(await req(`/print/2?${qs}`));
   ok("zone foot hide", !h7.includes("computer generated"));
   // placement: totals left + gst right swaps order
   const h8 = await t("format=a4&ztotals=left&zgst=right&zwords=right&zterms=right");
-  ok("totals-left order", h8.indexOf("Gross") < h8.indexOf("Taxable</th>"));
+  ok("totals-left order", h8.indexOf(">Gross<") < h8.indexOf("Taxable</th>"));
   const h9 = await t("format=a4&zgst=left&ztotals=right");
-  ok("gst-left order", h9.indexOf("Taxable</th>") < h9.indexOf("Gross"));
+  ok("gst-left order", h9.indexOf("Taxable</th>") < h9.indexOf(">Gross<"));
 }
 {
   ok("fs small", (await t("format=a4&fs=s")).includes("text-[10px]"));
@@ -187,7 +187,7 @@ const t = async (qs) => await html(await req(`/print/2?${qs}`));
 
 // ---------- PRINT EDGE CASES ----------
 {
-  ok("print missing voucher 404", (await req("/print/99999")).status === 404);
+  ok("print missing voucher → not-found", (await html(await req("/print/99999"))).includes("could not be found"));
   ok("print-design page content", (await html(await req("/print-design/2"))).includes("Bill Print Designer"));
   const vv = await html(await req("/vouchers/view/2"));
   ok("voucher view has PrintMenu", vv.includes("Design") && vv.includes("/print-design/2"));

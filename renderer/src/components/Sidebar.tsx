@@ -82,7 +82,7 @@ export default function Sidebar({ company, user }: { company: string; user: { us
     return () => window.removeEventListener("keydown", h);
   }, [router]);
   return (
-    <aside className="no-print w-56 shrink-0 bg-slate-900 text-slate-200">
+    <aside className="no-print sticky top-0 h-screen w-56 shrink-0 overflow-y-auto bg-slate-900 text-slate-200">
       <div className="border-b border-slate-700 px-4 py-3">
         <Logo size={26} textClass="text-teal-400 uppercase tracking-wide text-xs" />
         <div className="truncate text-sm font-semibold">{company}</div>
