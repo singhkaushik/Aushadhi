@@ -1,0 +1,20 @@
+appId: com.aushadhi.desktop
+productName: Aushadhi
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - package.json
+  - app/**/*
+# The spawned Next server and its native .node binary must live on the real filesystem
+asarUnpack:
+  - app/server/**/*
+win:
+  icon: resources/icon.ico
+  target:
+    - portable
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Aushadhi

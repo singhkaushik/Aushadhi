@@ -1,0 +1,101 @@
+import { app, BrowserWindow } from "electron";
+import { spawn, type ChildProcess } from "node:child_process";
+import fs from "node:fs";
+import http from "node:http";
+import net from "node:net";
+import path from "node:path";
+
+const isDev = process.env.NODE_ENV === "development";
+let server: ChildProcess | undefined;
+
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const s = net.createServer().once("error", reject).listen(0, "127.0.0.1", () => {
+      const port = (s.address() as net.AddressInfo).port;
+      s.close(() => resolve(port));
+    });
+  });
+}
+
+function waitFor(url: string, retries = 200): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const attempt = (n: number) => {
+      http
+        .get(url, (res) => {
+          res.resume();
+          resolve();
+        })
+        .on("error", () => {
+          if (n <= 0) return reject(new Error("ERP server did not start"));
+          setTimeout(() => attempt(n - 1), 250);
+        });
+    };
+    attempt(retries);
+  });
+}
+
+/** The standalone Next build can be flat or nested under renderer/ depending on the trace root. */
+function serverEntry(): string {
+  const base = path.join(__dirname, "server").replace("app.asar", "app.asar.unpacked");
+  for (const rel of ["server.js", path.join("renderer", "server.js")]) {
+    const p = path.join(base, rel);
+    if (fs.existsSync(p)) return p;
+  }
+  throw new Error(`Standalone server not found under ${base}`);
+}
+
+async function startServer(): Promise<string> {
+  const port = await freePort();
+  const entry = serverEntry();
+  const logFd = fs.openSync(path.join(app.getPath("userData"), "server.log"), "a");
+  server = spawn(process.execPath, [entry], {
+    cwd: path.dirname(entry),
+    stdio: ["ignore", logFd, logFd],
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+      NODE_ENV: "production",
+      HOSTNAME: "127.0.0.1",
+      PORT: String(port),
+      DB_PATH: path.join(app.getPath("userData"), "data", "pharma.db"),
+    },
+  });
+  server.on("exit", (code) => console.error(`ERP server exited with code ${code}`));
+  await waitFor(`http://127.0.0.1:${port}/login`);
+  return `http://127.0.0.1:${port}`;
+}
+
+async function createWindow() {
+  const iconPath = path.join(__dirname, "..", "resources", "icon.png");
+  const win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    autoHideMenuBar: true,
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    webPreferences: { contextIsolation: true, preload: path.join(__dirname, "preload.js") },
+  });
+  if (isDev) {
+    const port = process.argv[2] || "8888";
+    await win.loadURL(`http://localhost:${port}`);
+    win.webContents.openDevTools({ mode: "detach" });
+  } else {
+    try {
+      const base = await startServer();
+      await win.loadURL(`${base}/`);
+    } catch (err) {
+      const logPath = path.join(app.getPath("userData"), "server.log");
+      await win.loadURL(
+        `data:text/html,<body style="font-family:sans-serif;padding:2em"><h2>ERP server failed to start</h2><pre>${String(
+          err,
+        )}</pre><p>See log: ${logPath}</p></body>`,
+      );
+    }
+  }
+}
+
+app.whenReady().then(createWindow);
+app.on("window-all-closed", () => {
+  server?.kill();
+  app.quit();
+});
+app.on("quit", () => server?.kill());

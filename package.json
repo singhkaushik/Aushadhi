@@ -1,0 +1,40 @@
+{
+  "name": "aushadhi",
+  "version": "0.1.0",
+  "private": true,
+  "main": "app/main.js",
+  "scripts": {
+    "dev": "next dev renderer",
+    "build": "next build renderer",
+    "start": "next start renderer",
+    "lint": "eslint",
+    "desktop": "node scripts/desktop.mjs",
+    "dist": "node scripts/build-desktop.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.2.0",
+    "bwip-js": "^4.5.1",
+    "next": "15.5.29",
+    "qrcode": "^1.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^20",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.29",
+    "nextron": "^10.3.0",
+    "png-to-ico": "^3.0.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
