@@ -2,8 +2,10 @@ import { getSettings, dbPath } from "@/lib/db";
 import { STATES } from "@/lib/format";
 import { saveSettings } from "../masters/actions";
 import RestoreForm from "@/components/RestoreForm";
+import { requireRole } from "@/lib/auth";
 
 export default async function Settings({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+  await requireRole("admin");
   const { saved } = await searchParams;
   const s = getSettings();
   const F = ({ name, label, className = "" }: { name: string; label: string; className?: string }) => (

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { fmtExpiry, money, today } from "@/lib/format";
 
 export default async function Expiry({ searchParams }: { searchParams: Promise<{ months?: string }> }) {
-  const months = Number((await searchParams).months || 3);
+  const months = Math.max(0, Math.min(60, Number((await searchParams).months) || 3));
   const t = today();
   const cur = t.slice(0, 7);
   const lim = new Date(t + "T00:00:00Z");

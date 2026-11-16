@@ -1,6 +1,8 @@
 import ImportWizard from "@/components/ImportWizard";
+import { requireRole } from "@/lib/auth";
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  await requireRole("admin");
   return (
     <div className="max-w-6xl">
       <h1 className="h1">Import Marg Data</h1>

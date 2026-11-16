@@ -177,6 +177,15 @@ function migrate(d: Database.Database) {
     d.exec(`INSERT OR IGNORE INTO voucher_seq (type, fy, next) SELECT type, fy, MAX(number) + 1 FROM vouchers GROUP BY type, fy`);
     d.pragma("user_version = 4");
   }
+  if (v < 5) {
+    d.exec(`
+      CREATE INDEX IF NOT EXISTS voucher_items_voucher ON voucher_items(voucher_id);
+      CREATE INDEX IF NOT EXISTS voucher_items_item ON voucher_items(item_id);
+      CREATE INDEX IF NOT EXISTS voucher_items_batch ON voucher_items(batch_id);
+      CREATE INDEX IF NOT EXISTS ledger_voucher ON ledger_entries(voucher_id);
+    `);
+    d.pragma("user_version = 5");
+  }
 }
 
 export function fyOf(date: string) {

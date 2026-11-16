@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           }
           if (type === "stock") {
             const qty = n(r.qty);
-            const bno = s(r.batch_no) || "NA";
+            const bno = (s(r.batch_no) || "NA").toUpperCase();
             const existed = d.prepare("SELECT id FROM batches WHERE item_id = ? AND batch_no = ?").get(ex.id, bno);
             batch.run(ex.id, bno, parseExpiry(r.expiry), mrp, pr, ptr, qty, qty);
             if (existed) updated++;

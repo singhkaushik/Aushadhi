@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { fmtDate, money, today, VOUCHER_LABEL, vno } from "@/lib/format";
+import { fmtDate, isISODate, money, today, VOUCHER_LABEL, vno } from "@/lib/format";
 import TypeBadge from "@/components/TypeBadge";
 
 export default async function Vouchers({ searchParams }: { searchParams: Promise<{ type?: string; from?: string; to?: string; q?: string }> }) {
   const sp = await searchParams;
-  const to = sp.to || today();
-  const from = sp.from || to.slice(0, 8) + "01";
+  const to = isISODate(sp.to) ? sp.to : today();
+  const from = isISODate(sp.from) ? sp.from : to.slice(0, 8) + "01";
   const type = sp.type || "";
   const q = sp.q || "";
   const rows = db()

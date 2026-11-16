@@ -32,7 +32,7 @@ export default async function Items({ searchParams }: { searchParams: Promise<{ 
                 <td><Link className="text-teal-700 hover:underline" href={`/masters/items/${i.id}`}>{i.name}</Link></td>
                 <td>{i.company}</td><td>{i.pack}</td><td>{i.hsn}</td><td className="num">{i.gst_rate}</td>
                 <td className="num">{money(Number(i.mrp))}</td><td className="num">{money(Number(i.ptr))}</td><td className="num">{money(Number(i.purchase_rate))}</td>
-                <td className={`num ${Number(i.stock) <= Number(i.min_stock) ? "text-red-600" : ""}`}>{i.stock}</td><td>{i.rack}</td>
+                <td className={`num ${Number(i.min_stock) > 0 && Number(i.stock) <= Number(i.min_stock) ? "text-red-600" : ""}`}>{i.stock}</td><td>{i.rack}</td>
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={10} className="py-6 text-center text-slate-500">No items found</td></tr>}

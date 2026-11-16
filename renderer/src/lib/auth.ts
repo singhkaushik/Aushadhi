@@ -25,18 +25,11 @@ export function checkPassword(pw: string, stored: string) {
 }
 
 /**
- * The cookie proves identity, but role/active are always re-read from the users
- * table so that demotion, deactivation, deletion and DB restores take effect
- * immediately instead of surviving for the 7-day cookie lifetime.
+ * verifySession already re-reads role/active/username from the users table, so
+ * demotion, deactivation, deletion and DB restores take effect immediately.
  */
 export async function currentUser(): Promise<SessionUser | null> {
-  const sess = verifySession((await cookies()).get(COOKIE)?.value);
-  if (!sess) return null;
-  const row = db().prepare("SELECT id, username, role, active FROM users WHERE id = ?").get(sess.id) as
-    | { id: number; username: string; role: Role; active: number }
-    | undefined;
-  if (!row || !row.active || row.username !== sess.username || !ROLES.includes(row.role)) return null;
-  return { id: row.id, username: row.username, role: row.role };
+  return verifySession((await cookies()).get(COOKIE)?.value);
 }
 
 export async function requireRole(min: Role) {

@@ -8,9 +8,9 @@ import fs from "node:fs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
-const BASE = process.argv[2] || "http://localhost:3000";
+const BASE = process.argv[2] || "http://127.0.0.1:3000";
 const DB = process.env.DB_PATH || path.join(process.cwd(), "data", "pharma.db");
-const TODAY = "2026-11-16";
+const TODAY = new Date().toISOString().slice(0, 10);
 
 let passed = 0, failed = 0;
 const check = (name, cond, extra = "") => {

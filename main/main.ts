@@ -7,6 +7,16 @@ import path from "node:path";
 
 const isDev = process.env.NODE_ENV === "development";
 let server: ChildProcess | undefined;
+let baseUrl = "";
+
+/** True only for URLs on the embedded ERP server's origin. */
+const sameOrigin = (url: string) => {
+  try {
+    return !!baseUrl && new URL(url).origin === new URL(baseUrl).origin;
+  } catch {
+    return false;
+  }
+};
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -23,8 +33,9 @@ function waitFor(url: string, retries = 200): Promise<void> {
       http
         .get(url, (res) => {
           res.resume();
-          // Only count a healthy (non-5xx) response as "ready".
-          if ((res.statusCode ?? 500) < 500) return resolve();
+          // Only count a real 200 from our app as "ready" — a foreign service on
+          // a raced port that answers 4xx must not pass the health check.
+          if (res.statusCode === 200) return resolve();
           if (n <= 0) return reject(new Error(`ERP server returned HTTP ${res.statusCode}`));
           setTimeout(() => attempt(n - 1), 250);
         })
@@ -77,24 +88,27 @@ async function createWindow() {
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "preload.js") },
   });
-  // Lock the window to the local ERP server: no new windows, no external navigation.
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  // Lock the window to the embedded ERP server. window.open stays allowed for
+  // the app's own origin — print views depend on it — while external windows
+  // and navigation off that origin are denied.
+  const prefs = { contextIsolation: true, sandbox: true, preload: path.join(__dirname, "preload.js") };
+  win.webContents.setWindowOpenHandler(({ url }) =>
+    sameOrigin(url)
+      ? { action: "allow" as const, overrideBrowserWindowOptions: { autoHideMenuBar: true, webPreferences: prefs } }
+      : { action: "deny" as const },
+  );
   win.webContents.on("will-navigate", (e, url) => {
-    try {
-      const u = new URL(url);
-      if (!(u.hostname === "127.0.0.1" || u.hostname === "localhost")) e.preventDefault();
-    } catch {
-      e.preventDefault();
-    }
+    if (!sameOrigin(url)) e.preventDefault();
   });
   if (isDev) {
     const port = process.argv[2] || "8888";
-    await win.loadURL(`http://localhost:${port}`);
+    baseUrl = `http://localhost:${port}`;
+    await win.loadURL(`${baseUrl}/`);
     win.webContents.openDevTools({ mode: "detach" });
   } else {
     try {
-      const base = await startServer();
-      await win.loadURL(`${base}/`);
+      baseUrl = await startServer();
+      await win.loadURL(`${baseUrl}/`);
     } catch (err) {
       const logPath = path.join(app.getPath("userData"), "server.log");
       await win.loadURL(

@@ -12,6 +12,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const g = await guardApi("billing");
     if (g.res) return g.res;
     const id = Number((await params).id);
+    if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "Invalid voucher id" }, { status: 400 });
     const body = await req.json();
     const res =
       body.type === "adjustment"
@@ -33,6 +34,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const g = await guardApi("admin");
     if (g.res) return g.res;
     const id = Number((await params).id);
+    if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "Invalid voucher id" }, { status: 400 });
     const v = db().prepare("SELECT type, number, total FROM vouchers WHERE id = ?").get(id) as
       | { type: string; number: number; total: number }
       | undefined;

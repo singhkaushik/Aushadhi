@@ -10,7 +10,7 @@ files:
 asarUnpack:
   - app/server/**/*
 win:
-  icon: resources/icon.ico
+  icon: resources/icon.png
   target:
     - portable
     - nsis

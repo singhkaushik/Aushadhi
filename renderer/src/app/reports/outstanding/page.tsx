@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { db } from "@/lib/db";
-import { fmtDate, money, today, vno } from "@/lib/format";
+import { fmtDate, isISODate, money, today, vno } from "@/lib/format";
 import { pendingBills } from "@/lib/reports";
 
 export default async function Outstanding({ searchParams }: { searchParams: Promise<{ side?: string; to?: string; detail?: string }> }) {
   const sp = await searchParams;
   const side = sp.side === "payable" ? -1 : 1;
-  const to = sp.to || today();
+  const to = isISODate(sp.to) ? sp.to : today();
   const grp = side === 1 ? "Sundry Debtors" : "Sundry Creditors";
   const parties = db().prepare("SELECT id, name, city, phone, credit_days FROM accounts WHERE grp IN ('Sundry Debtors','Sundry Creditors') AND active = 1 ORDER BY name").all() as Record<string, string | number>[];
   const data = parties

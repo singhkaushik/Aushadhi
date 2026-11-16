@@ -83,9 +83,9 @@ function nextNumber(type: string, fy: number) {
   const d = db();
   d.prepare("INSERT OR IGNORE INTO voucher_seq (type, fy, next) VALUES (?, ?, 1)").run(type, fy);
   const r = d.prepare("UPDATE voucher_seq SET next = next + 1 WHERE type = ? AND fy = ? RETURNING next").get(type, fy) as {
-    n: number;
+    next: number;
   };
-  return r.n - 1;
+  return r.next - 1;
 }
 
 function applyStock(voucherId: number, sign: number) {
@@ -223,7 +223,7 @@ export function saveInvoice(input: InvoiceInput, existingId?: number) {
         mrp: Number(l.mrp) || 0,
         disc_pct: Number(l.disc_pct) || 0,
         gst_rate: Number(l.gst_rate) || 0,
-        batch_no: (l.batch_no || "").trim() || "NA",
+        batch_no: ((l.batch_no || "").trim() || "NA").toUpperCase(),
         expiry: parseExpiry(l.expiry),
       };
       return { line, c: computeLine(line, inter) };
@@ -343,6 +343,11 @@ export function saveCashVoucher(input: CashInput, existingId?: number) {
     let entries: [number, number][];
     let total: number;
     const cashAccountId = input.type === "journal" ? null : Number(input.cash_account_id) || sysAcc("CASH");
+    if (input.type !== "journal") {
+      const acc = d.prepare("SELECT grp FROM accounts WHERE id = ?").get(cashAccountId) as { grp: string } | undefined;
+      if (!acc || (acc.grp !== "Cash-in-Hand" && acc.grp !== "Bank Accounts"))
+        throw new Error("Select a valid cash or bank account");
+    }
     if (input.type === "journal") {
       const lines = (input.lines || []).filter((l) => l.account_id && (Number(l.debit) || Number(l.credit)));
       if (lines.length < 2) throw new Error("Journal needs at least two lines");
@@ -451,7 +456,7 @@ export function saveAdjustment(input: AdjustmentInput, existingId?: number) {
       const item = itemRate.get(l.item_id) as { purchase_rate: number; mrp: number; name: string } | undefined;
       if (!item) throw new Error(`Item #${l.item_id} not found`);
       const delta = Number(l.delta);
-      const batchNo = (l.batch_no || "").trim() || "NA";
+      const batchNo = ((l.batch_no || "").trim() || "NA").toUpperCase();
       let b = findBatch.get(l.item_id, batchNo) as (BatchRow & { expiry: string | null; purchase_rate: number; mrp: number }) | undefined;
       const expiry = parseExpiry(l.expiry);
       if (!b) {

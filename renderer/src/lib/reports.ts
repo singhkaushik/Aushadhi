@@ -1,5 +1,5 @@
 import { db, GROUPS } from "./db";
-import { r2, today } from "./format";
+import { isISODate, r2, today } from "./format";
 
 export function fyStart(date = today()) {
   const [y, m] = date.split("-").map(Number);
@@ -7,9 +7,15 @@ export function fyStart(date = today()) {
 }
 
 export function range(sp: { from?: string; to?: string }, defaultFrom: "month" | "fy" | "today" = "month") {
-  const to = sp.to || today();
-  const from = sp.from || (defaultFrom === "fy" ? fyStart(to) : defaultFrom === "today" ? to : to.slice(0, 8) + "01");
-  return { from, to };
+  const to = isISODate(sp.to) ? sp.to : today();
+  const from = isISODate(sp.from)
+    ? sp.from
+    : defaultFrom === "fy"
+      ? fyStart(to)
+      : defaultFrom === "today"
+        ? to
+        : to.slice(0, 8) + "01";
+  return { from: from <= to ? from : to, to };
 }
 
 // Adjustments store a signed delta in vi.qty, so their movement must be counted (+1 × delta).
@@ -124,7 +130,8 @@ export function pendingBills(accountId: number, side: 1 | -1, asOf = today()): P
     b.pending = r2(b.pending - use);
     credit = r2(credit - use);
   }
-  const now = new Date(asOf + "T00:00:00Z").getTime();
+  const nowT = new Date(asOf + "T00:00:00Z").getTime();
+  const now = Number.isNaN(nowT) ? Date.now() : nowT;
   const open = bills
     .filter((b) => b.pending > 0.004)
     .map((b) => ({ ...b, days: b.date ? Math.floor((now - new Date(b.date + "T00:00:00Z").getTime()) / 86400000) : 0 }));

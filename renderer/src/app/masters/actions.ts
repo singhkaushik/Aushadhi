@@ -48,8 +48,10 @@ export async function deleteAccount(f: FormData) {
   const used = db().prepare("SELECT COUNT(*) c FROM ledger_entries WHERE account_id = ?").get(id) as { c: number };
   const sys = db().prepare("SELECT code FROM accounts WHERE id = ?").get(id) as { code: string | null };
   let detail = nm;
-  if (used.c > 0 || sys?.code) {
-    db().prepare("UPDATE accounts SET active = 0 WHERE id = ? AND code IS NULL").run(id);
+  if (sys?.code) {
+    detail = `${nm} (system account — cannot delete)`;
+  } else if (used.c > 0) {
+    db().prepare("UPDATE accounts SET active = 0 WHERE id = ?").run(id);
     detail = `${nm} (deactivated — has transactions)`;
   } else {
     db().prepare("DELETE FROM accounts WHERE id = ?").run(id);
@@ -103,7 +105,7 @@ export async function saveOpeningBatch(f: FormData) {
   await requireRole("billing");
   const itemId = Number(f.get("item_id"));
   const batchId = Number(f.get("batch_id") || 0);
-  const batchNo = str(f, "batch_no") || "NA";
+  const batchNo = (str(f, "batch_no") || "NA").toUpperCase();
   const expiry = parseExpiry(str(f, "expiry"));
   const opening = num(f, "opening_qty");
   const d = db();

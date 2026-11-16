@@ -4,7 +4,7 @@
   "private": true,
   "main": "app/main.js",
   "scripts": {
-    "dev": "next dev renderer",
+    "dev": "node -e \"require('fs').rmSync('renderer/.next',{recursive:true,force:true})\" && next dev renderer",
     "build": "next build renderer",
     "start": "node scripts/start-server.mjs",
     "lint": "eslint",
@@ -30,10 +30,10 @@
     "@types/react-dom": "^19",
     "electron": "^45.3.3",
     "electron-builder": "^26.18.0",
+    "png-to-ico": "^3.0.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
     "nextron": "^10.3.0",
-    "png-to-ico": "^3.0.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

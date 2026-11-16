@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { money, today } from "@/lib/format";
+import { isISODate, money, today } from "@/lib/format";
 import { balances } from "@/lib/reports";
 import DateRange from "@/components/DateRange";
 
 export default async function TrialBalance({ searchParams }: { searchParams: Promise<{ to?: string }> }) {
-  const to = (await searchParams).to || today();
+  const sp = await searchParams;
+  const to = isISODate(sp.to) ? sp.to : today();
   const rows = balances("0000-00-00", to).filter((b) => Math.abs(b.closing) > 0.004);
   const dr = rows.reduce((a, b) => a + (b.closing > 0 ? b.closing : 0), 0);
   const cr = rows.reduce((a, b) => a + (b.closing < 0 ? -b.closing : 0), 0);

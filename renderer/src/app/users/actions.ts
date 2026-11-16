@@ -1,8 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { checkPassword, currentUser, hashPassword, requireRole, ROLES } from "@/lib/auth";
+import { COOKIE, signSession } from "@/lib/session";
 import { audit } from "@/lib/audit";
 
 export async function addUser(f: FormData) {
@@ -36,10 +38,16 @@ export async function updateUser(f: FormData) {
 export async function changeOwnPassword(f: FormData) {
   const u = await currentUser();
   if (!u) throw new Error("Not logged in");
-  const row = db().prepare("SELECT password_hash FROM users WHERE id = ?").get(u.id) as { password_hash: string };
+  const row = db().prepare("SELECT password_hash FROM users WHERE id = ?").get(u.id) as
+    | { password_hash: string }
+    | undefined;
+  if (!row) throw new Error("User not found");
   if (!checkPassword(String(f.get("current") || ""), row.password_hash)) redirect("/password?err=1");
   const pw = String(f.get("password") || "");
   if (pw.length < 4 || pw !== String(f.get("confirm"))) redirect("/password?err=2");
   db().prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(pw), u.id);
+  // Re-issue the session signed under the new hash so this session survives;
+  // every other session for this user is now invalid.
+  (await cookies()).set(COOKIE, signSession(u), { httpOnly: true, sameSite: "lax", path: "/", maxAge: 7 * 86400 });
   redirect("/password?ok=1");
 }

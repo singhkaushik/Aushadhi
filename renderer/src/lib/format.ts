@@ -69,7 +69,8 @@ function threeDigits(n: number) {
 
 export function amountInWords(amount: number) {
   let n = Math.floor(Math.abs(amount));
-  const paise = Math.round((Math.abs(amount) - n) * 100);
+  let paise = Math.round((Math.abs(amount) - n) * 100);
+  if (paise === 100) { n += 1; paise = 0; }
   if (n === 0 && paise === 0) return "Rupees Zero Only";
   const parts: string[] = [];
   const crore = Math.floor(n / 10000000); n %= 10000000;

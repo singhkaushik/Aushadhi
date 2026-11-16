@@ -6,7 +6,7 @@ const WRITE_PAGES = ["/vouchers/edit", "/masters/accounts/new", "/masters/items/
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname === "/login" || pathname === "/api/login") return NextResponse.next();
+  if (pathname === "/login" || pathname === "/api/login" || pathname === "/api/logout") return NextResponse.next();
   const user = verifySession(req.cookies.get(COOKIE)?.value);
   const deny = (msg: string, status: number) =>
     pathname.startsWith("/api/")
